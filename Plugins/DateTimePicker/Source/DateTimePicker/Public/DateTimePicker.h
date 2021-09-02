@@ -21,3 +21,4 @@ MONOLITHIC_HEADER_BOILERPLATE()
 /* Public includes.
 *****************************************************************************/
 #include "DateTimePickerGlobals.h"
+#include "PickableDateTime.h"

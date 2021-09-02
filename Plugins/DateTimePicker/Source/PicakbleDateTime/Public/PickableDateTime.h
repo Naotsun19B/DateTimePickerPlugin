@@ -20,15 +20,16 @@ public:
 
 public:
 	// Constructor.
-	FPickableDateTime() = default;
-	FPickableDateTime(const FDateTime& InDateTime) : DateTime(InDateTime) {}
+	FPickableDateTime() : DateTime(FDateTime::Now()) {}
+	explicit FPickableDateTime(int64 InTicks) : DateTime(InTicks) {}
+	explicit FPickableDateTime(const FDateTime& InDateTime) : DateTime(InDateTime) {}
 	virtual ~FPickableDateTime() = default;
 
 	// FDateTime operator overloading wrapper functions.
 	// See the header of FDateTime for details.
 	FPickableDateTime operator+(const FTimespan& Other) const
 	{
-		return FDateTime(DateTime.GetTicks() + Other.GetTicks());
+		return FPickableDateTime(DateTime.GetTicks() + Other.GetTicks());
 	}
 	
 	FPickableDateTime& operator+=(const FTimespan& Other)
@@ -52,7 +53,7 @@ public:
 	
 	FPickableDateTime operator-(const FTimespan& Other) const
 	{
-		return FDateTime(DateTime.GetTicks() - Other.GetTicks());
+		return FPickableDateTime(DateTime.GetTicks() - Other.GetTicks());
 	}
 	
 	FPickableDateTime& operator-=(const FTimespan& Other)

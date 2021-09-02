@@ -24,6 +24,8 @@ public class DateTimePicker : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
+				
+				"PickableDateTime",
 			}
 			);
 	}
