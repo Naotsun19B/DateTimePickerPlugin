@@ -138,7 +138,7 @@ void FPickableDateTimeDetail::HandleOnDateTimePicked(const FDateTime& PickedDate
 		*static_cast<FDateTime*>(RawDataInstance) = PickedDateTime;
 	}
 	
-	DateTimeHandle->NotifyPostChange();
+	DateTimeHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	DateTimeHandle->NotifyFinishedChangingProperties();
 
 	if (StructPickerAnchor.IsValid())

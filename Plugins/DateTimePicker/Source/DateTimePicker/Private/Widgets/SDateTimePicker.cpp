@@ -3,7 +3,9 @@
 #include "Widgets/SDateTimePicker.h"
 #include "Components/VerticalBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 namespace DateTimePickerInternal
 {
