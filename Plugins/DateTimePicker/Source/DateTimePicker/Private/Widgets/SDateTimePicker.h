@@ -41,6 +41,10 @@ public:
 	
 	SLATE_END_ARGS()
 
+	void OnPressedPreviousMonth();
+	void OnPressedNextMonth();
+	void OnPressedNow();
+
 	void Construct(const FArguments& InArgs);
 
 private:
