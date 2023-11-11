@@ -108,9 +108,8 @@ FText FPickableDateTimeDetail::GetComboTextValue() const
 		return LOCTEXT("MultipleValues", "Multiple Values");
 	}
 	
-	return FText::AsDateTime(
+	return FText::AsDate(
 		*CurrentValue,
-		EDateTimeStyle::Default,
 		EDateTimeStyle::Default,
 		FText::GetInvariantTimeZone()
 	);

@@ -1,14 +1,11 @@
 // Copyright 2021 Naotsun. All Rights Reserved.
 
 #include "Widgets/SDateTimePicker.h"
-
-#include <iostream>
-
 #include "Components/VerticalBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
 
 namespace DateTimePickerInternal
 {
@@ -18,7 +15,7 @@ namespace DateTimePickerInternal
 	public:
 		SLATE_BEGIN_ARGS(SDateTimeGrid) {}
 			SLATE_ARGUMENT(FDateTime, DateTime)
-			SLATE_ARGUMENT(FDateTime,PendingDateTime)
+			SLATE_ARGUMENT(FDateTime, PendingDateTime)
 			SLATE_ARGUMENT(bool, ShouldBeGrayOut)
 			SLATE_ARGUMENT(SDateTimePicker::EDateTimePickerMode, Mode)
 			SLATE_EVENT(SDateTimePicker::FOnDateTimePicked, OnDateTimePicked)
@@ -57,14 +54,12 @@ namespace DateTimePickerInternal
 			default: break;
 			}
 
-			const FLinearColor GridColor = InArgs._ShouldBeGrayOut ? FLinearColor(FVector(0.3f)) : (FDateTime::Now().GetDate() == DateTime.GetDate()) ? FLinearColor(FColor::Green) :PendingDateTime.GetDate() == DateTime.GetDate() ?FLinearColor(FColor::Orange): FLinearColor(FVector(0.8f));
-
+			const FLinearColor GridColor = InArgs._ShouldBeGrayOut ? FLinearColor(FVector(0.3f)) : (FDateTime::Now().GetDate() == DateTime.GetDate()) ? FLinearColor(FColor::Green) : PendingDateTime.GetDate() == DateTime.GetDate() ? FLinearColor(FColor::Orange) : FLinearColor(FVector(0.8f));
 
 			SButton::Construct(
 				SButton::FArguments()
 				.ButtonColorAndOpacity(GridColor)
 				.Text(FText::FromString(FString::FromInt(DisplayNumber)))
-				//.ForegroundColor(PendingDateTime.GetDate() == DateTime.GetDate() ?FLinearColor(FColor::Green) : FLinearColor(FVector(0.8f) ))
 				.OnPressed(this, &SDateTimeGrid::HandleOnPressed)
 			);
 		}
@@ -159,33 +154,64 @@ namespace DateTimePickerInternal
 				INDEX_NONE,
 				[](const FDateTime& PendingDateTime) -> FDateTime
 				{
-					const FDateTime FirstDate(PendingDateTime.GetYear(), PendingDateTime.GetMonth(), 1);
+					const FDateTime FirstDate(PendingDateTime.GetYear() , PendingDateTime.GetMonth(), 1);
 					const EDayOfWeek FirstDayOfWeek = FirstDate.GetDayOfWeek();
-					return FirstDate.GetTicks() - (ETimespan::TicksPerDay * DateTimePickerInternal::GetDaysThatPassedSinceSunday(FirstDayOfWeek));
+					return FirstDate.GetTicks() - (ETimespan::TicksPerDay * static_cast<int32>(FirstDayOfWeek));//DateTimePickerInternal::GetDaysThatPassedSinceSunday(FirstDayOfWeek));
 				},
 				[](const FDateTime& PendingDateTime, const FDateTime& DateTime) -> bool
 				{
 					return (PendingDateTime.GetMonth() != DateTime.GetMonth());
 				}
 			)
+		},
+				{
+			SDateTimePicker::EDateTimePickerMode::Year,
+			FGenerateCalenderGrids(
+				// 6 * 5 grid to show years, to be ensure that the current year is in the center PendingDateTime.GetYear() - 12
+			6, 5,
+				ETimespan::TicksPerYear,
+				INDEX_NONE,
+				[](const FDateTime& PendingDateTime) -> FDateTime
+				{
+					const FDateTime FirstDate(PendingDateTime.GetYear() - 12, PendingDateTime.GetMonth(), PendingDateTime.GetDay());
+					return FirstDate;
+				},
+				[](const FDateTime& PendingDateTime, const FDateTime& DateTime) -> bool
+				{
+					return (PendingDateTime.GetYear() != DateTime.GetYear());
+				}
+			)
 		}
 	};
 }
 
+int32 SDateTimePicker::GetNormalizedDay(int32 inMonth)
+{
+	const int32 DaysInMonth = FDateTime::DaysInMonth(PendingDateTime.GetYear(), inMonth);
+	return PendingDateTime.GetDay() > DaysInMonth ? DaysInMonth : PendingDateTime.GetDay();
+}
 
 void SDateTimePicker::OnPressedPreviousMonth()
 {
-	//if(PendingDateTime.GetMonth() % 12)
-	int32 normalizedMonth = (PendingDateTime.GetMonth() - 1 <= 0) ? 12 : PendingDateTime.GetMonth() - 1;
-	PendingDateTime = FDateTime(PendingDateTime.GetYear(), normalizedMonth, PendingDateTime.GetDay());
-	RebuildCalenderPanel();
+	const int32 NormalizedMonth = PendingDateTime.GetMonth() - 1;
 
+	if (NormalizedMonth <= 0)
+		PendingDateTime = FDateTime(PendingDateTime.GetYear() - 1, 12, GetNormalizedDay(12));
+	else
+		PendingDateTime = FDateTime(PendingDateTime.GetYear(), NormalizedMonth, GetNormalizedDay(NormalizedMonth));
+
+	RebuildCalenderPanel();
 }
 
 void SDateTimePicker::OnPressedNextMonth()
 {
-	int32 normalizedMonth = PendingDateTime.GetMonth() % 12 + 1;
-	PendingDateTime = FDateTime(PendingDateTime.GetYear(), normalizedMonth, PendingDateTime.GetDay());
+	int32 NormalizedMonth = PendingDateTime.GetMonth() % 12 + 1;
+
+	if (NormalizedMonth == 1)
+		PendingDateTime = FDateTime(PendingDateTime.GetYear() + 1, NormalizedMonth, GetNormalizedDay(NormalizedMonth));
+	else
+		PendingDateTime = FDateTime(PendingDateTime.GetYear(), NormalizedMonth, GetNormalizedDay(NormalizedMonth));
+
 	RebuildCalenderPanel();
 }
 
@@ -193,6 +219,28 @@ void SDateTimePicker::OnPressedNow()
 {
 	PendingDateTime = FDateTime::Now();
 	RebuildCalenderPanel();
+}
+
+void SDateTimePicker::OnYearChanged()
+{
+	Mode = (Mode == EDateTimePickerMode::Year) ? EDateTimePickerMode::Day : EDateTimePickerMode::Year;
+	RebuildCalenderPanel();
+}
+
+void SDateTimePicker::OnPressedOkay()
+{
+	if (OnDateTimePicked.IsBound())
+	{
+		OnDateTimePicked.Execute(PendingDateTime);
+	}
+}
+
+void SDateTimePicker::OnPressedCancel()
+{
+	if (OnDateTimePicked.IsBound())
+	{
+		OnDateTimePicked.Execute(InitialDateTimeSelected);
+	}
 }
 
 void SDateTimePicker::Construct(const FArguments& InArgs)
@@ -206,61 +254,115 @@ void SDateTimePicker::Construct(const FArguments& InArgs)
 		PendingDateTime = FDateTime::Now();
 	}
 
+	InitialDateTimeSelected = PendingDateTime;
+
 	OnDateTimePicked = InArgs._OnDateTimePicked;
+
+	const FSlateFontInfo FontInfo(FCoreStyle::GetDefaultFontStyle("Regular", 12));
 
 	ChildSlot
 		[
 			SNew(SBox)
-				.Padding(10.f)
+				.Padding(5.f)
+				.WidthOverride(330)
+				.HeightOverride(215)
+				.MinDesiredWidth(330)
+				.MinDesiredHeight(215)
 				[
 					// Show year and month text and button to switch between months.
 					SNew(SVerticalBox)
 						+ SVerticalBox::Slot()
-						.MaxHeight(50.f)
+						.AutoHeight()
+						.Padding(0, 0, 0, 2)
 						[
 							SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
-								.HAlign(HAlign_Left)
-								[
-									SNew(STextBlock)
-										.Text(this, &SDateTimePicker::GetTitleText)
-								]
-								+ SHorizontalBox::Slot()
-								.HAlign(HAlign_Right)
 								[
 									SNew(SHorizontalBox)
 										+ SHorizontalBox::Slot()
+										.HAlign(HAlign_Left)
+										.AutoWidth()
 										[
 											SNew(SButton)
-												.Text(FText::FromString("<<"))
+												.Text(FText::FromString("<"))
 												.OnPressed(this, &SDateTimePicker::OnPressedPreviousMonth)
 										]
+
+										+ SHorizontalBox::Slot()
+										.HAlign(HAlign_Fill)
+										.FillWidth(1)
+										[
+											SNew(STextBlock)
+												.Text(this, &SDateTimePicker::GetTitleText)
+												.Font(FontInfo)
+												.Justification(ETextJustify::Center)
+										]
+
 										+ SHorizontalBox::Slot()
 										.HAlign(HAlign_Right)
+										.AutoWidth()
 										[
 											SNew(SButton)
-												.Text(FText::FromString(">>"))
+												.Text(FText::FromString(">"))
 												.OnPressed(this, &SDateTimePicker::OnPressedNextMonth)
 										]
 
-								]
+										+ SHorizontalBox::Slot()
+										.HAlign(HAlign_Right)
+										.AutoWidth()
+										[
+											SNew(SButton)
+												.Text(FText::FromString(FString::FromInt(PendingDateTime.GetYear())))
+												.OnPressed(this, &SDateTimePicker::OnYearChanged)
+										]
 
-								+ SHorizontalBox::Slot()
-								.HAlign(HAlign_Right)
-								[
-									SNew(SButton)
-										.Text(FText::FromString("Now"))
-										.OnPressed(this, &SDateTimePicker::OnPressedNow)
+										+ SHorizontalBox::Slot()
+										.HAlign(HAlign_Right)
+										.AutoWidth()
+										[
+											SNew(SButton)
+												.Text(FText::FromString("Today"))
+												.OnPressed(this, &SDateTimePicker::OnPressedNow)
+										]
+
 								]
 						]
+
 						// A grid panel that displays the date and time of the calendar.
 						+ SVerticalBox::Slot()
+						.HAlign(HAlign_Fill)
+						.Padding(0, 3, 0, 0)
 						.AutoHeight()
 						[
-							SAssignNew(CalendarPanel, SGridPanel)
+							SAssignNew(CalendarPanel, SUniformGridPanel)
+						]
+
+						// Okay and Cancel Button to confirm the Date
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0, 3, 0, 0)
+						[
+							SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Right)
+								.FillWidth(1)
+								[
+									SNew(SButton)
+										.Text(FText::FromString(TEXT("Cancel")))
+										.OnPressed(this, &SDateTimePicker::OnPressedCancel)
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Right)
+								.AutoWidth()
+								[
+									SNew(SButton)
+										.Text(FText::FromString(TEXT("OK")))
+										.OnPressed(this, &SDateTimePicker::OnPressedOkay)
+								]
 						]
 				]
 		];
+
 
 	RebuildCalenderPanel();
 }
@@ -274,46 +376,23 @@ void SDateTimePicker::RebuildCalenderPanel()
 	const DateTimePickerInternal::FGenerateCalenderGrids& Info = DateTimePickerInternal::GenerateCalenderGridsInfos[Mode];
 	const FDateTime FirstDate = Info.GetFirstDate(PendingDateTime);
 
-	//Add Weekday Row
-	for (int32 Day = 0; Day < Info.ColumnNum; Day++)
+	//Add day name
+	if (Mode == EDateTimePickerMode::Day)
 	{
-		FString DayOfWeek="";
-		 switch (Day) {
-        case 0:
-	        DayOfWeek = "Su";
-            break;
-        case 1:
-            DayOfWeek = "Mo";
-            break;
-        case 2:
-            DayOfWeek =  "Tu" ;
-            break;
-        case 3:
-            DayOfWeek =  "We";
-            break;
-        case 4:
-            DayOfWeek =  "Th" ;
-            break;
-        case 5:
-            DayOfWeek =  "Fr" ;
-            break;
-        case 6:
-            DayOfWeek = "Sa";
-            break;
-        default:
-			break;
-		 }
-		CalendarPanel->AddSlot(Day, 0)
-			[
-				SNew(STextBlock)
-					.Text(FText::FromString(DayOfWeek))
-					.Justification(ETextJustify::Center)
-
-			];
+		for (int32 Day = 0; Day < Info.ColumnNum; Day++)
+		{
+			FString DayOfWeek = ShortDayNames[Day];
+			CalendarPanel->AddSlot(Day, 0)
+				[
+					SNew(STextBlock)
+						.Text(FText::FromString(DayOfWeek))
+						.Justification(ETextJustify::Center)
+				];
+		}
 	}
 
 	// Fill the contents of the calendar.
-	for (int32 Row = 0; Row <Info.RowNum; Row++)
+	for (int32 Row = 0; Row < Info.RowNum; Row++)
 	{
 		for (int32 Column = 0; Column < Info.ColumnNum; Column++)
 		{
@@ -323,7 +402,7 @@ void SDateTimePicker::RebuildCalenderPanel()
 				break;
 			}
 
-			const FDateTime DateTime = FirstDate.GetTicks() + (Info.Timespan * Index);
+			const FDateTime DateTime = (Mode == EDateTimePickerMode::Day) ? FirstDate.GetTicks() + (Info.Timespan * Index) : FirstDate + FTimespan::FromDays(365.25 * Index);
 			CalendarPanel->AddSlot(Column, Row + 1)
 				[
 					SNew(DateTimePickerInternal::SDateTimeGrid)
@@ -339,10 +418,9 @@ void SDateTimePicker::RebuildCalenderPanel()
 
 FText SDateTimePicker::GetTitleText() const
 {
-	return FText::AsDateTime(
+	return FText::AsDate(
 		PendingDateTime,
 		EDateTimeStyle::Medium,
-		EDateTimeStyle::Short,
 		FText::GetInvariantTimeZone()
 	);
 }
@@ -351,6 +429,11 @@ void SDateTimePicker::HandleOnDateTimePicked(const FDateTime& PickedDateTime)
 {
 	if (OnDateTimePicked.IsBound())
 	{
-		OnDateTimePicked.Execute(PickedDateTime);
+		PendingDateTime = PickedDateTime;
+
+		if (Mode == EDateTimePickerMode::Year)
+			Mode = EDateTimePickerMode::Day;
+
+		RebuildCalenderPanel();
 	}
 }
