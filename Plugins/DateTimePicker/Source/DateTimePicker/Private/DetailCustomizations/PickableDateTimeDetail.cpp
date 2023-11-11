@@ -108,9 +108,8 @@ FText FPickableDateTimeDetail::GetComboTextValue() const
 		return LOCTEXT("MultipleValues", "Multiple Values");
 	}
 	
-	return FText::AsDateTime(
+	return FText::AsDate(
 		*CurrentValue,
-		EDateTimeStyle::Default,
 		EDateTimeStyle::Default,
 		FText::GetInvariantTimeZone()
 	);
@@ -138,7 +137,7 @@ void FPickableDateTimeDetail::HandleOnDateTimePicked(const FDateTime& PickedDate
 		*static_cast<FDateTime*>(RawDataInstance) = PickedDateTime;
 	}
 	
-	DateTimeHandle->NotifyPostChange();
+	DateTimeHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	DateTimeHandle->NotifyFinishedChangingProperties();
 
 	if (StructPickerAnchor.IsValid())

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SGridPanel;
+class SUniformGridPanel;
 
 /**
  * Widget that displays the calendar and lets you select the date and time.
@@ -41,12 +41,20 @@ public:
 	
 	SLATE_END_ARGS()
 
+	void OnPressedPreviousMonth();
+	int32 GetNormalizedDay(int32 InMonth);
+	void OnPressedNextMonth();
+	void OnPressedNow();
+	void OnYearChanged();
+	void OnPressedOkay();
+	void OnPressedCancel();
+
 	void Construct(const FArguments& InArgs);
 
 private:
 	// Rebuild the date and time on the calendar.
 	void RebuildCalenderPanel();
-	
+
 	// Gets the year and month text to display as the calendar title.
 	FText GetTitleText() const;
 
@@ -56,12 +64,18 @@ private:
 private:
 	// Current DateTimePicker mode.
 	EDateTimePickerMode Mode = EDateTimePickerMode::Day;
+
+	//An Array of day name
+	const TCHAR* ShortDayNames[7] = { TEXT("Mon"), TEXT("Tue"), TEXT("Wed"), TEXT("Thu"), TEXT("Fri"), TEXT("Sat"), TEXT("Sun") };
 	
 	// Currently selected DateTime.
 	FDateTime PendingDateTime;
 
+	// Selected DataTime once open the Calendar
+	FDateTime InitialDateTimeSelected;
+
 	// A grid panel that displays the date and time of the calendar.
-	TSharedPtr<SGridPanel> CalendarPanel;
+	TSharedPtr<SUniformGridPanel> CalendarPanel;
 	
 	// An event that is called when a date and time is selected by the DateTimePicker.
 	FOnDateTimePicked OnDateTimePicked;
